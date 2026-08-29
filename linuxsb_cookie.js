@@ -1,33 +1,30 @@
 /**
- * 作用：访问 linux.sb 时自动保存 Cookie
+ * 作用：访问 linux.sb 时自动保存 Cookie（增强版+调试通知）
  */
 
-if (typeof $request === "undefined") {
-  $notification.post("linux.sb", "提示", "请勿手动运行。请用 Safari 登录 linux.sb 获取 Cookie");
-  $done({});
-} else {
-  const reqHeaders = $request.headers || {};
-  
-  // 兼容各种大小写形式的 Cookie 键名
-  let cookie = "";
-  for (const key of Object.keys(reqHeaders)) {
-    if (key.toLowerCase() === "cookie") {
-      cookie = reqHeaders[key];
-      break;
-    }
-  }
+const isRequest = typeof $response === "undefined";
+const headers = (isRequest ? $request.headers : $response.headers) || {};
 
-  // 确保 Cookie 包含有效内容（至少包含 session / token / _csrf 等特征，且不是空）
-  if (cookie && cookie.length > 10) {
-    const oldCookie = $persistentStore.read("linuxsb_cookie");
-    if (oldCookie !== cookie) {
-      if ($persistentStore.write(cookie, "linuxsb_cookie")) {
-        $notification.post("linux.sb", "Cookie 写入成功 🎉", "已成功保存/更新登录凭据！");
-      } else {
-        $notification.post("linux.sb", "Cookie 写入失败 ⚠️", "持久化存储写入失败");
-      }
-    }
+// 查找 Cookie 或 Set-Cookie
+let cookieVal = "";
+for (const key of Object.keys(headers)) {
+  const lower = key.toLowerCase();
+  if (lower === "cookie" || lower === "set-cookie") {
+    cookieVal = headers[key];
+    break;
   }
-
-  $done({});
 }
+
+if (cookieVal) {
+  const oldCookie = $persistentStore.read("linuxsb_cookie");
+  $persistentStore.write(cookieVal, "linuxsb_cookie");
+  $notification.post("linux.sb", "Cookie 写入成功 🎉", `成功抓取到凭据 (${cookieVal.slice(0, 20)}...)`);
+} else {
+  // 如果拦截到了 /user/ 或 /daily_checkin 却没 Cookie，弹出排查提示
+  const url = isRequest ? ($request.url || "") : "";
+  if (url.includes("/user/") || url.includes("daily_checkin")) {
+    $notification.post("linux.sb 调试", "未找到 Cookie 头", `当前请求 Header 键名: ${Object.keys(headers).join(", ")}`);
+  }
+}
+
+$done(isRequest ? {} : {});
