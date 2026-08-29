@@ -1,39 +1,46 @@
 /**
  * 作用：访问 linux.sb 时自动保存 Cookie
+ * 版本：v3 (修复 cdn-cgi 误判)
  */
 
-const req = $request;
-const url = req ? req.url : "";
-const headers = (req && req.headers) ? req.headers : {};
+const req = typeof $request !== "undefined" ? $request : null;
 
-console.log(`[linux.sb] 捕获到 URL: ${url}`);
-console.log(`[linux.sb] 请求 Headers 包含键: ${Object.keys(headers).join(", ")}`);
-
-// 忽略 cdn-cgi / svg / 图片等静态资源请求
-if (url.includes("/cdn-cgi/") || url.endsWith(".svg") || url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".css") || url.endsWith(".js")) {
-  console.log(`[linux.sb] 静态资源，跳过提取。`);
+if (!req) {
+  console.log("[linux.sb] 手动运行不支持");
+  $notification.post("linux.sb", "提示", "请用 Safari 登录 linux.sb 触发");
   $done({});
 } else {
-  // 查找 Cookie
-  let cookie = "";
-  for (const key of Object.keys(headers)) {
-    if (key.toLowerCase() === "cookie") {
-      cookie = headers[key];
-      break;
-    }
-  }
+  const url = req.url || "";
+  const headers = req.headers || {};
+  const keys = Object.keys(headers);
 
-  if (cookie) {
-    console.log(`[linux.sb] 成功提取到 Cookie: ${cookie.slice(0, 30)}...`);
-    $persistentStore.write(cookie, "linuxsb_cookie");
-    $notification.post("linux.sb", "Cookie 写入成功 🎉", "已成功保存/更新登录凭据！");
+  console.log("[linux.sb] URL: " + url);
+  console.log("[linux.sb] Header 键名: " + keys.join(", "));
+
+  // 只跳过真正的静态文件（图片、样式、字体等）
+  const isStatic = /\.(svg|png|jpg|jpeg|gif|css|js|woff2?|ico)(\?|$)/i.test(url);
+
+  if (isStatic) {
+    console.log("[linux.sb] 静态资源，跳过");
+    $done({});
   } else {
-    console.log(`[linux.sb] 该请求中未找到 Cookie 请求头。`);
-    // 只有访问主页面未带 Cookie 时才提示
-    if (url.includes("daily_checkin") || url.includes("/user/")) {
-      $notification.post("linux.sb 提示", "未找到 Cookie", "如果已登录，请在网页内退出重新登录一次");
+    let cookie = "";
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i].toLowerCase() === "cookie") {
+        cookie = headers[keys[i]];
+        break;
+      }
     }
-  }
 
-  $done({});
+    if (cookie && cookie.length > 10) {
+      console.log("[linux.sb] ✅ 提取到 Cookie 长度: " + cookie.length);
+      $persistentStore.write(cookie, "linuxsb_cookie");
+      $notification.post("linux.sb", "Cookie 写入成功 🎉", "长度 " + cookie.length + " 字节");
+    } else {
+      console.log("[linux.sb] ❌ 未找到 Cookie");
+      $notification.post("linux.sb 诊断", "无 Cookie", "Keys: " + keys.join(", "));
+    }
+
+    $done({});
+  }
 }
