@@ -4,8 +4,9 @@
 #!tag = 签到
 
 [Script]
-# 精准匹配主站页面请求
-http-request ^https:\/\/linux\.sb\/(daily_checkin|topic|login|$|\?) script-path=https://fastly.jsdelivr.net/gh/spaoye/sb--loon@main/linuxsb_cookie.js, requires-body=false, tag=linux.sb 获取Cookie
+# 请求与响应双重捕获
+http-request ^https:\/\/linux\.sb\/(user|daily_checkin|topic|login|$|\?) script-path=https://fastly.jsdelivr.net/gh/spaoye/sb--loon@main/linuxsb_cookie.js, requires-body=false, tag=linux.sb 获取Cookie(Req)
+http-response ^https:\/\/linux\.sb\/(user|daily_checkin|topic|login|$|\?) script-path=https://fastly.jsdelivr.net/gh/spaoye/sb--loon@main/linuxsb_cookie.js, requires-body=false, tag=linux.sb 获取Cookie(Resp)
 
 cron "0 9 * * *" script-path=https://fastly.jsdelivr.net/gh/spaoye/sb--loon@main/linuxsb_checkin.js, tag=linux.sb 定时签到
 
