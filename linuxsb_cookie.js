@@ -1,30 +1,39 @@
 /**
- * 作用：访问 linux.sb 时自动保存 Cookie（增强版+调试通知）
+ * 作用：访问 linux.sb 时自动保存 Cookie
  */
 
-const isRequest = typeof $response === "undefined";
-const headers = (isRequest ? $request.headers : $response.headers) || {};
+const req = $request;
+const url = req ? req.url : "";
+const headers = (req && req.headers) ? req.headers : {};
 
-// 查找 Cookie 或 Set-Cookie
-let cookieVal = "";
-for (const key of Object.keys(headers)) {
-  const lower = key.toLowerCase();
-  if (lower === "cookie" || lower === "set-cookie") {
-    cookieVal = headers[key];
-    break;
-  }
-}
+console.log(`[linux.sb] 捕获到 URL: ${url}`);
+console.log(`[linux.sb] 请求 Headers 包含键: ${Object.keys(headers).join(", ")}`);
 
-if (cookieVal) {
-  const oldCookie = $persistentStore.read("linuxsb_cookie");
-  $persistentStore.write(cookieVal, "linuxsb_cookie");
-  $notification.post("linux.sb", "Cookie 写入成功 🎉", `成功抓取到凭据 (${cookieVal.slice(0, 20)}...)`);
+// 忽略 cdn-cgi / svg / 图片等静态资源请求
+if (url.includes("/cdn-cgi/") || url.endsWith(".svg") || url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".css") || url.endsWith(".js")) {
+  console.log(`[linux.sb] 静态资源，跳过提取。`);
+  $done({});
 } else {
-  // 如果拦截到了 /user/ 或 /daily_checkin 却没 Cookie，弹出排查提示
-  const url = isRequest ? ($request.url || "") : "";
-  if (url.includes("/user/") || url.includes("daily_checkin")) {
-    $notification.post("linux.sb 调试", "未找到 Cookie 头", `当前请求 Header 键名: ${Object.keys(headers).join(", ")}`);
+  // 查找 Cookie
+  let cookie = "";
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === "cookie") {
+      cookie = headers[key];
+      break;
+    }
   }
-}
 
-$done(isRequest ? {} : {});
+  if (cookie) {
+    console.log(`[linux.sb] 成功提取到 Cookie: ${cookie.slice(0, 30)}...`);
+    $persistentStore.write(cookie, "linuxsb_cookie");
+    $notification.post("linux.sb", "Cookie 写入成功 🎉", "已成功保存/更新登录凭据！");
+  } else {
+    console.log(`[linux.sb] 该请求中未找到 Cookie 请求头。`);
+    // 只有访问主页面未带 Cookie 时才提示
+    if (url.includes("daily_checkin") || url.includes("/user/")) {
+      $notification.post("linux.sb 提示", "未找到 Cookie", "如果已登录，请在网页内退出重新登录一次");
+    }
+  }
+
+  $done({});
+}
