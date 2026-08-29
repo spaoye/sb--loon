@@ -4,11 +4,11 @@
 #!tag = 签到
 
 [Script]
-# 拦截请求获取 Cookie
-http-request ^https?:\/\/(www\.)?linux\.(sb|bi)\/ script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_cookie.js, requires-body=false, tag=linux.sb 获取Cookie
+# 拦截所有 linux.sb 请求（包括 cdn-cgi）
+http-request ^https:\/\/linux\.sb\/ script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_cookie.js, requires-body=false, tag=linux.sb 获取Cookie
 
 # 每天 9:00 自动签到
 cron "0 9 * * *" script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_checkin.js, tag=linux.sb 定时签到
 
 [Mitm]
-hostname = linux.sb, *.linux.sb, linux.bi, *.linux.bi
+hostname = linux.sb
