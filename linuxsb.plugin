@@ -1,14 +1,15 @@
 #!name = linux.sb 自动签到
-#!desc = 访问 linux.sb 自动抓取 Cookie，每日定时自动签到。
+#!desc = 仅在签到页按需抓取 Cookie（可用则不抓），每日定时自动签到。
 #!author = Walvez & Minis
 #!tag = 签到
+#!icon = https://linux.sb/app/assets/index.svg
 
 [Script]
-# 拦截所有 linux.sb 请求（包括 cdn-cgi）
-http-request ^https:\/\/linux\.sb\/ script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_cookie.js, requires-body=false, tag=linux.sb 获取Cookie
+# 只拦截签到页请求；Cookie 可用性由脚本内部判断，可用则不写入
+http-request ^https:\/\/linux\.sb\/daily_checkin script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_cookie.js, requires-body=false, timeout=10, tag=linux.sb 抓取Cookie
 
-# 每天 9:00 自动签到
-cron "0 9 * * *" script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_checkin.js, tag=linux.sb 定时签到
+# 每天 9:05 自动签到，失败时会标记 Cookie 需刷新
+cron "5 9 * * *" script-path=https://raw.githubusercontent.com/spaoye/sb--loon/main/linuxsb_checkin.js, timeout=30, tag=linux.sb 定时签到
 
 [Mitm]
 hostname = linux.sb
